@@ -15,6 +15,14 @@
   * - ADC1_AnalogWatchdog from STM32L1xx_StdPeriph_Examples
   *
   * Debugging is done using ST-Link and SWV.
+  *----------------------------------------------------------------------------
+  *
+  * version	2
+  * date	2015-01-11
+  * brief	Enable digital OUT so that analog IN can control something - an LED.
+  *
+  * adding references
+  * - http://www.cs.indiana.edu/~geobrown/book.pdf
   ******************************************************************************
 */
 
@@ -24,13 +32,13 @@
 
 static __IO uint32_t TimingDelay;
 uint8_t BlinkSpeed = 0;
-uint16_t AD_value;
+uint16_t AD_value, ledval;
 RCC_ClocksTypeDef RCC_Clocks;
 
 
 int main(void)
 {
-    GPIO_InitTypeDef GPIO_InitStructure;
+    GPIO_InitTypeDef GPIO_InitStructure, GPIO_InitStructurPA5;
     ADC_InitTypeDef ADC_InitStructure;
 
 	/* SysTick end of count event each 1ms */
@@ -40,9 +48,17 @@ int main(void)
 	/* Enable the GPIOA Clock */
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
-	GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AN;
+	GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_OUT;
 	GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+//	/* Enable PA5 as digital OUT */
+//	GPIO_InitStructurPA5.GPIO_Pin = GPIO_Pin_5;
+//	GPIO_InitStructurPA5.GPIO_Mode = GPIO_Mode_OUT;
+//	GPIO_InitStructurPA5.GPIO_Speed = GPIO_Speed_400KHz;
+//	GPIO_InitStructurPA5.GPIO_OType = GPIO_OType_PP;
+//	GPIO_InitStructurPA5.GPIO_PuPd = GPIO_PuPd_DOWN;
+//	GPIO_Init(GPIOA, &GPIO_InitStructurPA5);
 
 	/* Enable the HSI - the ADC internal clock running at 16 MHz
 	 * Was unsure if needed - it is!*/
@@ -54,6 +70,7 @@ int main(void)
 	 * For some reason there is no ADC0*/
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
 	/* ADC1 Configuration -----------------------------------------------------*/
+	ADC_DeInit(ADC1);
 	ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
 	ADC_InitStructure.ADC_ScanConvMode = DISABLE;
 	ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;
@@ -63,7 +80,7 @@ int main(void)
 	ADC_Init(ADC1, &ADC_InitStructure);
 
 	/* ADC1 regular channel0 configuration */
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_48Cycles);
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_384Cycles);
 
 	/* Enable ADC1 */
 	ADC_Cmd(ADC1, ENABLE);
@@ -75,13 +92,20 @@ int main(void)
 	ADC_SoftwareStartConv(ADC1);
 
 	/* Infinite loop */
+	uint8_t divider = 1;
+	//GPIOA->BSRRL = GPIO_Pin_5;
 	while (1)
 	{
 		//wait for conversion complete
 		while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC)){}
 		AD_value = ADC_GetConversionValue(ADC1);
-		printf("ADC value: %d\n", AD_value);
+		printf("ADC value: %d\t\tDelay value: %d\n", AD_value, AD_value/divider);
 		Delay(1000);
+
+//		GPIO_ToggleBits(GPIOA, GPIO_Pin_5);
+//		Delay(AD_value/divider);
+//		GPIO_ToggleBits(GPIOA, GPIO_Pin_5);
+//		Delay(AD_value/divider);
 	}
 }
 
